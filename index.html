@@ -353,9 +353,32 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
+  // Codifica cada segmento del path pero respeta / y :// para URLs absolutas
+  function safeUrl(raw) {
+    // Si ya es una URL absoluta (http/https), codificar solo la parte del path
+    if (/^https?:\/\//i.test(raw)) {
+      try {
+        var u = new URL(raw);
+        // re-encode pathname segments
+        u.pathname = u.pathname.split('/').map(function(s){ return encodeURIComponent(decodeURIComponent(s)); }).join('/');
+        return u.toString();
+      } catch(e) { return raw; }
+    }
+    // Path relativo: codificar segmentos separados por /
+    return raw.split('/').map(function(s){ return encodeURIComponent(decodeURIComponent(s)); }).join('/');
+  }
+
+  // Etiqueta legible: solo el nombre del archivo sin carpeta ni extensión
+  function labelFromUrl(url) {
+    var part = url.split('/').pop();          // último segmento
+    part = decodeURIComponent(part);          // decodificar %20 etc.
+    part = part.replace(/\.html?$/i, '');     // quitar .html / .htm
+    return part || url;
+  }
+
   function render() {
-    const list = load();
-    const tbody = document.getElementById('budget-tbody');
+    var list = load();
+    var tbody = document.getElementById('budget-tbody');
     tbody.innerHTML = '';
 
     if (list.length === 0) {
@@ -364,12 +387,14 @@
     }
 
     list.forEach(function(item, idx) {
-      const tr = document.createElement('tr');
+      var href  = safeUrl(item.url);
+      var label = labelFromUrl(item.url);
+      var tr = document.createElement('tr');
       tr.innerHTML =
         '<td class="td-name">' + item.name + '</td>' +
-        '<td class="td-link"><a href="' + item.url + '" target="_blank">' +
-          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
-          item.url +
+        '<td class="td-link"><a href="' + href + '" target="_blank">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:5px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+          label +
         '</a></td>' +
         '<td class="td-del"><button class="btn-del" title="Eliminar" onclick="deleteBudget(' + idx + ')">✕</button></td>';
       tbody.appendChild(tr);
